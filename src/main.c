@@ -18,7 +18,7 @@ in the next command line; separate it into distinct arguments (using blanks as
 delimiters), and set the args array entries to point to the beginning of what
 will become null-terminated, C-style strings. */
 
-void setup(char inputBuffer[], char *args[], int *background) {
+void setup(char inputBuffer[], char *args[], int *background, char *copy) {
     int length, /* # of characters in the command line */
         i,      /* loop index for accessing inputBuffer array */
         start,  /* index where beginning of next command parameter is */
@@ -50,6 +50,7 @@ void setup(char inputBuffer[], char *args[], int *background) {
 	    exit(-1);           /* terminate with error code of -1 */
     }
 
+    strcpy(copy, inputBuffer);
 	// printf(">> %s", inputBuffer);
     for (i = 0; i < length; i++){ /* examine every character in the inputBuffer */
         switch (inputBuffer[i]){
@@ -79,7 +80,7 @@ void setup(char inputBuffer[], char *args[], int *background) {
 	    } /* end of switch */
     }    /* end of for */
     args[ct] = NULL; /* just in case the input line was > 80 */
-
+    if (*background) args[ct - 1] = NULL;
 	// for (i = 0; i <= ct; i++) printf("<< args[%d] = %s\n", i, args[i]);
 } /* end of setup routine */
  
@@ -88,18 +89,21 @@ int main(void) {
     char inputBuffer[MAX_LINE]; /*buffer to hold command entered */
     int background; /* equals 1 if a command is followed by '&' */
     char *args[MAX_LINE/2 + 1]; /*command line arguments */
+    char copy[MAX_LINE];
     for (;;) {
         background = 0;
         printf(STYLE "myshell$ " RESET);
         fflush(stdout);
         /*setup() calls exit() when Control-D is entered */
-        setup(inputBuffer, args, &background);
+        setup(inputBuffer, args, &background, copy);
         
         /** the steps are:
         (1) fork a child process using fork()
         (2) the child process will invoke execv()
         (3) if background == 0, the parent will wait,
         otherwise it will invoke the setup() function again. */
+
+        if (args[0] == NULL) continue;
 
         if (!strcmp(args[0], "exit")) {
             printf("Process Terminated!\n");
@@ -121,9 +125,14 @@ int main(void) {
             char path[MAX_LINE] = "/bin/";
             strcat(path, args[0]);
 
-            execv(path, args);
-            perror("Child process encountered an error!");
-            exit(EXIT_FAILURE);
+            if (fopen(path, "r") != NULL) {
+                execv(path, args);
+                perror("Child process encountered an error!");
+                exit(EXIT_FAILURE);
+            } else {
+                system(copy);
+                exit(EXIT_SUCCESS);
+            }
         }
     }
 }

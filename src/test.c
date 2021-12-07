@@ -1,5 +1,7 @@
 #include <stdio.h>
 
 int main() {
-    printf("enayi nazmi");
+    char text[50];
+    scanf("%s", text);
+    printf("%s\n", text);
 }

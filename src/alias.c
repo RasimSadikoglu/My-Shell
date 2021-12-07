@@ -61,7 +61,7 @@ int alias_find(char *args[], int opt, int index) {
         break;
     }
 
-    return opt == OFIND ? list_index : 0;
+    return opt == OFIND ? list_index : 1;
 }
 
 int alias_add_new_entry(char *args[]) {
