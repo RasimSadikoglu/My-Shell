@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#define CHECK_USAGE(CONDITION) do { if (!(CONDITION)) { fprintf(stderr, "Wrong usage of alias!\n"); return 0; } } while (0)
+
 enum find_options {OFIND, REPLACE};
 
 static char ***list = NULL;
@@ -45,7 +47,7 @@ void alias_free(int index) {
 int alias_find(char *args[], int opt, int index) {
     for (int i = 0; i < list_index; i++) {
 
-        if (list[i][0] == NULL) continue;
+        if (list[i] == NULL) continue;
 
         if (strcmp(list[i][0], args[index])) continue;
 
@@ -69,10 +71,7 @@ int alias_add_new_entry(char *args[]) {
 
     int argc = 0; for (char **arg_it = args + 1; *arg_it != NULL; arg_it++, argc++);
 
-    if (argc < 2) {
-        fprintf(stderr, "Wrong usage of alias!\n");
-        return 0;
-    }
+    CHECK_USAGE(argc >= 2);
 
     int entry_index = alias_find(args, OFIND, argc);
     alias_free(entry_index);
@@ -84,6 +83,9 @@ int alias_add_new_entry(char *args[]) {
     strcpy(list[entry_index][0], args[argc]);
 
     // Remove "
+    CHECK_USAGE(args[1][0] == '"');
+    CHECK_USAGE(args[argc - 1][strlen(args[argc - 1]) - 1] == '"');
+
     args[1] = args[1] + 1;
     args[argc - 1][strlen(args[argc - 1]) - 1] = '\0';
 
