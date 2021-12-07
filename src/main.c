@@ -4,8 +4,12 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include "../include/alias.h"
+
+#define STYLE "\033[1;96m"
+#define RESET "\033[0m"
  
 #define MAX_LINE 80 /* 80 chars per line, per command, should be enough. */
  
@@ -80,12 +84,13 @@ void setup(char inputBuffer[], char *args[], int *background) {
 } /* end of setup routine */
  
 int main(void) {
+
     char inputBuffer[MAX_LINE]; /*buffer to hold command entered */
     int background; /* equals 1 if a command is followed by '&' */
     char *args[MAX_LINE/2 + 1]; /*command line arguments */
     for (;;) {
         background = 0;
-        printf("myshell$ ");
+        printf(STYLE "myshell$ " RESET);
         fflush(stdout);
         /*setup() calls exit() when Control-D is entered */
         setup(inputBuffer, args, &background);
@@ -106,13 +111,18 @@ int main(void) {
         int pid = fork();
 
         if (pid) { /* Parent */
-            if (!background) waitpid(pid, NULL, 0);
+            if (!background) {
+				waitpid(pid, NULL, 0);
+			} else {
+                printf("Child process running on the background...\n");
+			    fflush(stdout);
+            }
         } else { /* Child */
             char path[MAX_LINE] = "/bin/";
             strcat(path, args[0]);
 
             execv(path, args);
-            perror("Child process encountered an error!\n");
+            perror("Child process encountered an error!");
             exit(EXIT_FAILURE);
         }
     }
