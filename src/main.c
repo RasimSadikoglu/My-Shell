@@ -125,7 +125,7 @@ int redirect(char *args[]) {
         } else if (!strcmp(*it, ">") || !strcmp(*it, ">>")) {
             int flags = O_WRONLY;
             if (access(*(it + 1), F_OK) != 0) flags |= O_CREAT;
-            if ((*(it + 1))[1] == '>') flags |= O_APPEND;
+            if ((*it)[1] == '>') flags |= O_APPEND;
             else flags |= O_TRUNC;
 
             int fd = open(*(it + 1), flags, 0755);
@@ -142,9 +142,13 @@ int redirect(char *args[]) {
     return 0;
 
 }
- 
-int main(void) {
 
+void signal_handler(int sig) {
+    printf("Handle\n");
+    return;
+}
+
+int main(void) {
     char inputBuffer[MAX_LINE]; /*buffer to hold command entered */
     int background; /* equals 1 if a command is followed by '&' */
     char *args[MAX_LINE/2 + 1]; /*command line arguments */
@@ -174,10 +178,13 @@ int main(void) {
         int pid = fork();
 
         if (pid) { /* Parent */
+            signal(SIGINT, signal_handler);
             if (!background) {
 				waitpid(pid, NULL, 0);
 			}
         } else { /* Child */
+            if (background) signal(SIGINT, signal_handler);
+
             char path[MAX_LINE];
             path_find(args[0], path);
 
