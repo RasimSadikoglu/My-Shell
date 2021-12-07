@@ -38,6 +38,7 @@ void alias_free(int index) {
     }
 
     free(list[index]);
+    list[index] = NULL;
 
 }
 
@@ -67,6 +68,11 @@ int alias_find(char *args[], int opt, int index) {
 int alias_add_new_entry(char *args[]) {
 
     int argc = 0; for (char **arg_it = args + 1; *arg_it != NULL; arg_it++, argc++);
+
+    if (argc < 2) {
+        fprintf(stderr, "Wrong usage of alias!\n");
+        return 0;
+    }
 
     int entry_index = alias_find(args, OFIND, argc);
     alias_free(entry_index);
@@ -130,7 +136,7 @@ int alias_handler(char *args[]) {
     }
 
     if (!strcmp(args[0], "alias")) {
-        if (!strcmp(args[1], "-l")) return alias_list();
+        if (args[1] != NULL && !strcmp(args[1], "-l")) return alias_list();
 
         return alias_add_new_entry(args);
     }

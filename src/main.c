@@ -8,6 +8,8 @@
 
 #include "../include/alias.h"
 
+#define IFEXIT(CONDITION, MSG, CODE) do { if ((CONDITION)) { perror((MSG)); exit((CODE)); } } while (0)
+
 #define STYLE "\033[1;96m"
 #define RESET "\033[0m"
  
@@ -18,7 +20,7 @@ in the next command line; separate it into distinct arguments (using blanks as
 delimiters), and set the args array entries to point to the beginning of what
 will become null-terminated, C-style strings. */
 
-void setup(char inputBuffer[], char *args[], int *background, char *copy) {
+void setup(char inputBuffer[], char *args[], int *background) {
     int length, /* # of characters in the command line */
         i,      /* loop index for accessing inputBuffer array */
         start,  /* index where beginning of next command parameter is */
@@ -45,13 +47,8 @@ void setup(char inputBuffer[], char *args[], int *background, char *copy) {
     /* if the process is in the read() system call, read returns -1
     However, if this occurs, errno is set to EINTR. We can check this  value
     and disregard the -1 value */
-    if ( (length < 0) && (errno != EINTR) ) {
-        perror("error reading the command\n");
-	    exit(-1);           /* terminate with error code of -1 */
-    }
+    IFEXIT((length < 0) && (errno != EINTR), "Error reading the command\n", -1);
 
-    strcpy(copy, inputBuffer);
-	// printf(">> %s", inputBuffer);
     for (i = 0; i < length; i++){ /* examine every character in the inputBuffer */
         switch (inputBuffer[i]){
 	        case ' ':
@@ -81,31 +78,28 @@ void setup(char inputBuffer[], char *args[], int *background, char *copy) {
     }    /* end of for */
     args[ct] = NULL; /* just in case the input line was > 80 */
     if (*background) args[ct - 1] = NULL;
-	// for (i = 0; i <= ct; i++) printf("<< args[%d] = %s\n", i, args[i]);
 } /* end of setup routine */
 
 int path_find(char arg[], char path[]) {
 
-    const char *env_path_address = getenv("PATH");
+    const char *paths_address = getenv("PATH");
 
-    char env_path[strlen(env_path_address) + 1];
-    strcpy(env_path, env_path_address);
+    char paths[strlen(paths_address) + 1];
+    strcpy(paths, paths_address);
 
-    char *current_env = env_path, *temp;
+    char *current_path = paths, *next_path;
 
-    while (strtok_r(current_env, ":", &temp) != NULL) {
+    while (strtok_r(current_path, ":", &next_path) != NULL) {
 
-        char file[200];
-        strcpy(file, current_env);
-        strcat(file, "/");
-        strcat(file, arg);
+        char location[200];
+        sprintf(location, "%s/%s", current_path, arg);
 
-        if (!access(file, F_OK)) {
-            strcpy(path, file);
+        if (!access(location, F_OK)) {
+            strcpy(path, location);
             return 1;
         }
 
-        current_env = temp;
+        current_path = next_path;
     }
 
     strcpy(path, arg);
@@ -119,21 +113,23 @@ int redirect(char *args[]) {
 
         if (!strcmp(*it, "<")) {
             int fd = open(*(it + 1), O_RDONLY);
-            dup2(fd, STDIN_FILENO);
+
+            IFEXIT(dup2(fd, STDIN_FILENO) == -1, "Failed to redirect\n", EXIT_FAILURE);
+
             close(fd);
+
             *it = NULL;
         } else if (!strcmp(*it, ">") || !strcmp(*it, ">>")) {
-            int flags = O_WRONLY;
-            if (access(*(it + 1), F_OK) != 0) flags |= O_CREAT;
+            int flags = O_WRONLY | O_CREAT;
+
             if ((*it)[1] == '>') flags |= O_APPEND;
-            else flags |= O_TRUNC;
 
             int fd = open(*(it + 1), flags, 0755);
-            if (dup2(fd, STDOUT_FILENO) == -1) {
-                perror("Failed to redirect\n");
-                exit(EXIT_FAILURE);
-            }
+
+            IFEXIT(dup2(fd, STDIN_FILENO) == -1, "Failed to redirect\n", EXIT_FAILURE);
+
             close(fd);
+
             *it = NULL;
         }
 
@@ -143,29 +139,19 @@ int redirect(char *args[]) {
 
 }
 
-void signal_handler(int sig) {
-    printf("Handle\n");
-    return;
-}
-
 int main(void) {
     char inputBuffer[MAX_LINE]; /*buffer to hold command entered */
     int background; /* equals 1 if a command is followed by '&' */
     char *args[MAX_LINE/2 + 1]; /*command line arguments */
-    char copy[MAX_LINE];
     for (;;) {
         background = 0;
-        printf(STYLE "myshell$ " RESET);
-        fflush(stdout);
-        /*setup() calls exit() when Control-D is entered */
-        setup(inputBuffer, args, &background, copy);
-        
-        /** the steps are:
-        (1) fork a child process using fork()
-        (2) the child process will invoke execv()
-        (3) if background == 0, the parent will wait,
-        otherwise it will invoke the setup() function again. */
 
+        char shell_name[] = STYLE "myshell$ " RESET;
+        write(STDOUT_FILENO, shell_name, strlen(shell_name));
+
+        /*setup() calls exit() when Control-D is entered */
+        setup(inputBuffer, args, &background);
+        
         if (args[0] == NULL) continue;
 
         if (!strcmp(args[0], "exit")) {
@@ -178,21 +164,16 @@ int main(void) {
         int pid = fork();
 
         if (pid) { /* Parent */
-            signal(SIGINT, signal_handler);
-            if (!background) {
-				waitpid(pid, NULL, 0);
-			}
+            if (!background) waitpid(pid, NULL, 0);
         } else { /* Child */
-            if (background) signal(SIGINT, signal_handler);
-
             char path[MAX_LINE];
             path_find(args[0], path);
 
             redirect(args);
 
             execv(path, args);
-            perror("Child process encountered an error!");
-            exit(EXIT_FAILURE);
+            
+            IFEXIT(1, "Child process encountered an error!", EXIT_FAILURE);
         }
     }
 }
