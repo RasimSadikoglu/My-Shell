@@ -11,7 +11,7 @@
 #define STYLE "\033[1;96m"
 #define RESET "\033[0m"
  
-#define MAX_LINE 80 /* 80 chars per line, per command, should be enough. */
+#define MAX_LINE 200 /* 80 chars per line, per command, should be enough. */
  
 /* The setup function below will not return any value, but it will just: read
 in the next command line; separate it into distinct arguments (using blanks as
@@ -83,6 +83,65 @@ void setup(char inputBuffer[], char *args[], int *background, char *copy) {
     if (*background) args[ct - 1] = NULL;
 	// for (i = 0; i <= ct; i++) printf("<< args[%d] = %s\n", i, args[i]);
 } /* end of setup routine */
+
+int path_find(char arg[], char path[]) {
+
+    const char *env_path_address = getenv("PATH");
+
+    char env_path[strlen(env_path_address) + 1];
+    strcpy(env_path, env_path_address);
+
+    char *current_env = env_path, *temp;
+
+    while (strtok_r(current_env, ":", &temp) != NULL) {
+
+        char file[200];
+        strcpy(file, current_env);
+        strcat(file, "/");
+        strcat(file, arg);
+
+        if (!access(file, F_OK)) {
+            strcpy(path, file);
+            return 1;
+        }
+
+        current_env = temp;
+    }
+
+    strcpy(path, arg);
+    
+    return 1;
+}
+
+int redirect(char *args[]) {
+
+    for (char **it = args; *it != NULL; it++) {
+
+        if (!strcmp(*it, "<")) {
+            int fd = open(*(it + 1), O_RDONLY);
+            dup2(fd, STDIN_FILENO);
+            close(fd);
+            *it = NULL;
+        } else if (!strcmp(*it, ">") || !strcmp(*it, ">>")) {
+            int flags = O_WRONLY;
+            if (access(*(it + 1), F_OK) != 0) flags |= O_CREAT;
+            if ((*(it + 1))[1] == '>') flags |= O_APPEND;
+            else flags |= O_TRUNC;
+
+            int fd = open(*(it + 1), flags, 0755);
+            if (dup2(fd, STDOUT_FILENO) == -1) {
+                perror("Failed to redirect\n");
+                exit(EXIT_FAILURE);
+            }
+            close(fd);
+            *it = NULL;
+        }
+
+    }
+
+    return 0;
+
+}
  
 int main(void) {
 
@@ -117,22 +176,16 @@ int main(void) {
         if (pid) { /* Parent */
             if (!background) {
 				waitpid(pid, NULL, 0);
-			} else {
-                printf("Child process running on the background...\n");
-			    fflush(stdout);
-            }
+			}
         } else { /* Child */
-            char path[MAX_LINE] = "/bin/";
-            strcat(path, args[0]);
+            char path[MAX_LINE];
+            path_find(args[0], path);
 
-            if (fopen(path, "r") != NULL) {
-                execv(path, args);
-                perror("Child process encountered an error!");
-                exit(EXIT_FAILURE);
-            } else {
-                system(copy);
-                exit(EXIT_SUCCESS);
-            }
+            redirect(args);
+
+            execv(path, args);
+            perror("Child process encountered an error!");
+            exit(EXIT_FAILURE);
         }
     }
 }
