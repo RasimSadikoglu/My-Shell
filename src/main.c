@@ -146,7 +146,19 @@ int backgroud_processes(int add) {
     return process_count;
 }
 
-void child_handler(int sig) {
+pid_t foreground_process(pid_t new_pid) {
+    static pid_t pid = -1;
+
+    pid_t old_pid = pid;
+
+    if (new_pid == 0) return old_pid;
+
+    pid = new_pid;
+
+    return old_pid;
+}
+
+void sigchld_handler(int sig) {
     pid_t child_pid = waitpid(-1, NULL, WNOHANG);
 
     if (child_pid <= 0) return;
@@ -154,8 +166,15 @@ void child_handler(int sig) {
     backgroud_processes(-1);
 }
 
+void sigtstp_handler(int sig) {
+    pid_t child_pid = foreground_process(-1);
+    if (child_pid == -1) return;
+    kill(child_pid, SIGKILL);
+}
+
 int main(void) {
-    signal(SIGCHLD, child_handler);
+    signal(SIGCHLD, sigchld_handler);
+    signal(SIGTSTP, sigtstp_handler);
 
     char inputBuffer[MAX_LINE]; /*buffer to hold command entered */
     int background; /* equals 1 if a command is followed by '&' */
@@ -184,10 +203,14 @@ int main(void) {
 
         if (!alias_handler(args)) continue;
 
-        pid_t pid = fork();
+        pid_t pid;
+        IFEXIT((pid = fork()) == -1, "Fork failed!\n", EXIT_FAILURE);
 
         if (pid) { /* Parent */
-            if (!background) waitpid(pid, NULL, 0);
+            if (!background) {
+                foreground_process(pid);
+                waitpid(pid, NULL, 0);
+            }
             else backgroud_processes(1);
         } else { /* Child */
 
