@@ -123,10 +123,11 @@ int redirect(char *args[]) {
             int flags = O_WRONLY | O_CREAT;
 
             if ((*it)[1] == '>') flags |= O_APPEND;
+            else flags |= O_TRUNC;
 
             int fd = open(*(it + 1), flags, 0755);
 
-            IFEXIT(dup2(fd, STDIN_FILENO) == -1, "Failed to redirect\n", EXIT_FAILURE);
+            IFEXIT(dup2(fd, STDOUT_FILENO) == -1, "Failed to redirect\n", EXIT_FAILURE);
 
             close(fd);
 
@@ -168,13 +169,15 @@ void sigchld_handler(int sig) {
 
 void sigtstp_handler(int sig) {
     pid_t child_pid = foreground_process(-1);
+
     if (child_pid == -1) return;
+    
     kill(child_pid, SIGKILL);
 }
 
 int main(void) {
     signal(SIGCHLD, sigchld_handler);
-    signal(SIGTSTP, sigtstp_handler);
+    // signal(SIGTSTP, sigtstp_handler);
 
     char inputBuffer[MAX_LINE]; /*buffer to hold command entered */
     int background; /* equals 1 if a command is followed by '&' */
