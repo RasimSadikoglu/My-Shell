@@ -136,18 +136,38 @@ int redirect(char *args[]) {
     }
 
     return 0;
+}
 
+int backgroud_processes(int add) {
+    static int process_count = 0;
+
+    process_count += add;
+
+    return process_count;
+}
+
+void child_handler(int sig) {
+    pid_t child_pid = waitpid(-1, NULL, WNOHANG);
+
+    if (child_pid == -1) return;
+
+    backgroud_processes(-1);
+
+    printf(STYLE "myshell$ " RESET);
+    fflush(stdout);
 }
 
 int main(void) {
+    signal(SIGCHLD, child_handler);
+
     char inputBuffer[MAX_LINE]; /*buffer to hold command entered */
     int background; /* equals 1 if a command is followed by '&' */
     char *args[MAX_LINE/2 + 1]; /*command line arguments */
     for (;;) {
         background = 0;
 
-        char shell_name[] = STYLE "myshell$ " RESET;
-        write(STDOUT_FILENO, shell_name, strlen(shell_name));
+        printf(STYLE "myshell$ " RESET);
+        fflush(stdout);
 
         /*setup() calls exit() when Control-D is entered */
         setup(inputBuffer, args, &background);
@@ -155,17 +175,26 @@ int main(void) {
         if (args[0] == NULL) continue;
 
         if (!strcmp(args[0], "exit")) {
+            if (backgroud_processes(0) > 0) {
+                printf("There are background processes that are still running!\n");
+                fflush(stdout);
+                continue;
+            }
+
             printf("Process Terminated!\n");
             exit(0);
         }
 
         if (!alias_handler(args)) continue;
 
-        int pid = fork();
+        pid_t pid = fork();
 
         if (pid) { /* Parent */
+            printf("Child PID: %d\n", pid);
             if (!background) waitpid(pid, NULL, 0);
+            else backgroud_processes(1);
         } else { /* Child */
+
             char path[MAX_LINE];
             path_find(args[0], path);
 
