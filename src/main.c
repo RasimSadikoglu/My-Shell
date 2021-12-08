@@ -49,11 +49,11 @@ void setup(char inputBuffer[], char *args[], int *background) {
     and disregard the -1 value */
     IFEXIT((length < 0) && (errno != EINTR), "Error reading the command\n", -1);
 
-    for (i = 0; i < length; i++){ /* examine every character in the inputBuffer */
-        switch (inputBuffer[i]){
+    for (i = 0; i < length; i++) { /* examine every character in the inputBuffer */
+        switch (inputBuffer[i]) {
 	        case ' ':
 	        case '\t' :               /* argument separators */
-		        if(start != -1){
+		        if(start != -1) {
                     args[ct] = &inputBuffer[start];    /* set up pointer */
 		            ct++;
 		        }
@@ -149,12 +149,9 @@ int backgroud_processes(int add) {
 void child_handler(int sig) {
     pid_t child_pid = waitpid(-1, NULL, WNOHANG);
 
-    if (child_pid == -1) return;
+    if (child_pid <= 0) return;
 
     backgroud_processes(-1);
-
-    printf(STYLE "myshell$ " RESET);
-    fflush(stdout);
 }
 
 int main(void) {
@@ -190,7 +187,6 @@ int main(void) {
         pid_t pid = fork();
 
         if (pid) { /* Parent */
-            printf("Child PID: %d\n", pid);
             if (!background) waitpid(pid, NULL, 0);
             else backgroud_processes(1);
         } else { /* Child */
