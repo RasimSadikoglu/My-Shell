@@ -18,13 +18,15 @@ void alias_setup() {
 
 void alias_free_all(void) {
 
-    for (char ***alias_it = list; *alias_it != NULL; alias_it++) {
+    for (int i = 0; i < list_index; i++) {
 
-        for (char **arg_it = *alias_it; *arg_it != NULL; arg_it++) {
+        if (list[i] == NULL) continue;
+
+        for (char **arg_it = list[i]; *arg_it != NULL; arg_it++) {
             free(*arg_it);
         }
 
-        free(*alias_it);
+        free(list[i]);
     }
 
     free(list);
