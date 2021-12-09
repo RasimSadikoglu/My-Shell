@@ -87,6 +87,10 @@ void sigchld_handler(int sig) {
 
 void sigtstp_handler(int sig) {
 
+    for (process_tree *it = head->child; it != NULL; it = it->next) {
+        kill(it->pid, SIGCONT);
+    }
+
     if (head->next == NULL) return;
 
     pid_t child_pid = head->next->pid;
@@ -96,7 +100,4 @@ void sigtstp_handler(int sig) {
     
     kill(child_pid, SIGKILL);
 
-    for (process_tree *it = head->child; it != NULL; it = it->next) {
-        kill(it->pid, SIGCONT);
-    }
 }

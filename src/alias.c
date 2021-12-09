@@ -113,13 +113,13 @@ int alias_remove_entry(char *args[]) {
 
 int alias_list() {
 
-    for (char ***alias_it = list; *alias_it != NULL; alias_it++) {
+    for (int i = 0; i < list_index; i++) {
 
-        if (**alias_it == NULL) continue;
+        if (list[i] == NULL) continue;
 
-        printf("%s \"", (*alias_it)[0]);
+        printf("%s \"", list[i][0]);
 
-        for (char **arg_it = *alias_it + 1; *arg_it != NULL; arg_it++) {
+        for (char **arg_it = list[i]; *arg_it != NULL; arg_it++) {
 
             printf("%s ", *arg_it);
         }
