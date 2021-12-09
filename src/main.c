@@ -7,6 +7,7 @@
 #include <fcntl.h>
 
 #include "../include/alias.h"
+#include "../include/process_handler.h"
 
 #define IFEXIT(CONDITION, MSG, CODE) do { if ((CONDITION)) { perror((MSG)); exit((CODE)); } } while (0)
 
@@ -91,7 +92,7 @@ int path_find(char arg[], char path[]) {
 
     while (strtok_r(current_path, ":", &next_path) != NULL) {
 
-        char location[200];
+        char location[MAX_LINE];
         sprintf(location, "%s/%s", current_path, arg);
 
         if (!access(location, F_OK)) {
@@ -139,45 +140,11 @@ int redirect(char *args[]) {
     return 0;
 }
 
-int backgroud_processes(int add) {
-    static int process_count = 0;
-
-    process_count += add;
-
-    return process_count;
-}
-
-pid_t foreground_process(pid_t new_pid) {
-    static pid_t pid = -1;
-
-    pid_t old_pid = pid;
-
-    if (new_pid == 0) return old_pid;
-
-    pid = new_pid;
-
-    return old_pid;
-}
-
-void sigchld_handler(int sig) {
-    pid_t child_pid = waitpid(-1, NULL, WNOHANG);
-
-    if (child_pid <= 0) return;
-
-    backgroud_processes(-1);
-}
-
-void sigtstp_handler(int sig) {
-    pid_t child_pid = foreground_process(-1);
-
-    if (child_pid == -1) return;
-    
-    kill(child_pid, SIGKILL);
-}
-
 int main(void) {
+    register_main(getpid());
+
     signal(SIGCHLD, sigchld_handler);
-    // signal(SIGTSTP, sigtstp_handler);
+    signal(SIGTSTP, sigtstp_handler);
 
     char inputBuffer[MAX_LINE]; /*buffer to hold command entered */
     int background; /* equals 1 if a command is followed by '&' */
@@ -194,7 +161,7 @@ int main(void) {
         if (args[0] == NULL) continue;
 
         if (!strcmp(args[0], "exit")) {
-            if (backgroud_processes(0) > 0) {
+            if (background_process_count() > 0) {
                 printf("There are background processes that are still running!\n");
                 fflush(stdout);
                 continue;
@@ -210,13 +177,12 @@ int main(void) {
         IFEXIT((pid = fork()) == -1, "Fork failed!\n", EXIT_FAILURE);
 
         if (pid) { /* Parent */
-            if (!background) {
-                foreground_process(pid);
-                waitpid(pid, NULL, 0);
-            }
-            else backgroud_processes(1);
-        } else { /* Child */
 
+            register_child(pid, background);
+
+            if (!background) waitpid(pid, NULL, 0);
+
+        } else { /* Child */
             char path[MAX_LINE];
             path_find(args[0], path);
 
