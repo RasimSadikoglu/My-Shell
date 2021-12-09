@@ -112,21 +112,28 @@ int redirect(char *args[]) {
 
     for (char **it = args; *it != NULL; it++) {
 
-        if (!strcmp(*it, "<")) {
-            int fd = open(*(it + 1), O_RDONLY);
+        if ((*it)[0] == '<') {
+            int fd;
+            if ((*it)[1] == '\0') fd = open(*(it + 1), O_RDONLY);
+            else fd = open((*it) + 1, O_RDONLY);
 
             IFEXIT(dup2(fd, STDIN_FILENO) == -1, "Failed to redirect\n", EXIT_FAILURE);
 
             close(fd);
 
             *it = NULL;
-        } else if (!strcmp(*it, ">") || !strcmp(*it, ">>")) {
+        } else if ((*it)[0] == '>') {
+            (*it)++;
             int flags = O_WRONLY | O_CREAT;
 
-            if ((*it)[1] == '>') flags |= O_APPEND;
-            else flags |= O_TRUNC;
+            if ((*it)[0] == '>') {
+                flags |= O_APPEND;
+                (*it)++;
+            } else flags |= O_TRUNC;
 
-            int fd = open(*(it + 1), flags, 0755);
+            int fd;
+            if ((*it)[0] == '\0') fd = open(*(it + 1), flags, 0755);
+            else fd = open((*it), flags, 0755);
 
             IFEXIT(dup2(fd, STDOUT_FILENO) == -1, "Failed to redirect\n", EXIT_FAILURE);
 
