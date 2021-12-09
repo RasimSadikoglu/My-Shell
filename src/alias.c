@@ -74,27 +74,36 @@ int alias_add_new_entry(char *args[]) {
     int argc = 0; for (char **arg_it = args + 1; *arg_it != NULL; arg_it++, argc++);
 
     CHECK_USAGE(argc >= 2);
+    CHECK_USAGE(args[1][0] == '"');
+    CHECK_USAGE(args[argc - 1][strlen(args[argc - 1]) - 1] == '"');
 
     int entry_index = alias_find(args, OFIND, argc);
     alias_free(entry_index);
 
-    list[entry_index] = malloc(sizeof(char*) * (argc + 1));
-    list[entry_index][argc] = NULL;
+    char **alias_args = malloc(sizeof(char*) * 2);
+    int alias_index = 1;
 
-    list[entry_index][0] = malloc(strlen(args[argc]) + 1);
-    strcpy(list[entry_index][0], args[argc]);
-
-    // Remove "
-    CHECK_USAGE(args[1][0] == '"');
-    CHECK_USAGE(args[argc - 1][strlen(args[argc - 1]) - 1] == '"');
+    alias_args[0] = malloc(strlen(args[argc]) + 1);
+    strcpy(alias_args[0], args[argc]);
 
     args[1] = args[1] + 1;
     args[argc - 1][strlen(args[argc - 1]) - 1] = '\0';
 
+    if (args[1][0] == '\0') args[1] = NULL;
+    if (args[argc - 1][0] == '\0') args[argc - 1] = NULL;
+
     for (int i = 1; i < argc; i++) {
-        list[entry_index][i] = malloc(strlen(args[i]) + 1);
-        strcpy(list[entry_index][i], args[i]);
+        if (args[i] == NULL) continue;
+
+        alias_args[alias_index] = malloc(strlen(args[i]) + 1);
+        strcpy(alias_args[alias_index], args[i]);
+
+        alias_index++;
+        alias_args = realloc(alias_args, sizeof(char*) * (alias_index + 1));
+        alias_args[alias_index] = NULL;
     }
+
+    list[entry_index] = alias_args;
 
     if (entry_index == list_index) {
         list_index++;
@@ -121,7 +130,7 @@ int alias_list() {
 
         printf("%s \"", list[i][0]);
 
-        for (char **arg_it = list[i]; *arg_it != NULL; arg_it++) {
+        for (char **arg_it = list[i] + 1; *arg_it != NULL; arg_it++) {
 
             printf("%s ", *arg_it);
         }
