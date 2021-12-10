@@ -9,8 +9,5 @@ FLAGS:=-Wall -Wextra -Wpedantic
 ./bin/:
 	mkdir bin
 
-run: ./bin/main
-	./bin/main
-
 clean:
 	rm -f ./bin/*

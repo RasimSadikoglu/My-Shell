@@ -148,8 +148,6 @@ int redirect(char *args[]) {
 }
 
 int main(void) {
-    register_main(getpid());
-
     signal(SIGCHLD, sigchld_handler);
     signal(SIGTSTP, sigtstp_handler);
 
@@ -184,12 +182,15 @@ int main(void) {
         IFEXIT((pid = fork()) == -1, "Fork failed!\n", EXIT_FAILURE);
 
         if (pid) { /* Parent */
-
             register_child(pid, background);
 
             if (!background) waitpid(pid, NULL, 0);
 
         } else { /* Child */
+        
+            signal(SIGCHLD, SIG_DFL);
+            signal(SIGTSTP, background ? SIG_IGN : SIG_DFL);
+
             char path[MAX_LINE];
             path_find(args[0], path);
 

@@ -4,9 +4,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-pid_t register_main(pid_t pid);
 pid_t register_child(pid_t pid, int bg);
-pid_t unregister_child(pid_t pid);
 
 int background_process_count();
 
